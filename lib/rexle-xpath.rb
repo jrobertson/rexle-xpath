@@ -16,26 +16,39 @@ class RexleXPath
   def parse(s)
 
     case s
+      
+    # it's an xpath function
     when /^(\w+)\(\)$/
       @node.method(($1).to_sym).call
     else
-      query RexleXPathParser.new(s).to_a
+      query @node, RexleXPathParser.new(s).to_a
     end
   end
 
-  def query(a)
+  def query(node, xpath_instructions)
     
     r = []
+    row = xpath_instructions.shift    
+
+    method_name, *args = row
     
-    a.each do |row|
-      x, *args = row
-      if x == :select then
-        r = @node.select args.first
-      elsif row.is_a? Array then
-        r = query row
+    a = if method_name == :select then
+      
+      r = node.select args.first
+
+      if xpath_instructions.any? and r.any? then
+        r.map {|child_node| query(child_node, xpath_instructions) }
+      else
+        r
       end
+      
+    elsif row.is_a? Array then
+      query node, row
+    else
+      []
     end
-    r
+
+    a.flatten
 
   end
 
