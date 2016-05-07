@@ -41,6 +41,13 @@ class RexleXPath
   
   private
   
+  def attribute(node, args, xpath_instructions)
+
+    key = args.first.to_sym
+    r = node.attributes[key]
+    r ? true : false    
+  end
+  
   def not(node, args, xpath_instructions)
     
     r = query node, xpath_instructions
@@ -55,7 +62,7 @@ class RexleXPath
   
   def select(node, args, xpath_instructions)
 
-    a = node.select args.first
+    a = node.elements.select {|x| x.name == args.first }
 
     predicate = xpath_instructions.flatten.first.to_s == 'predicate'
 
