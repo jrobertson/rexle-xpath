@@ -45,7 +45,18 @@ class RexleXPath
 
     key = args.first.to_sym
     r = node.attributes[key]
-    r ? true : false    
+    
+    xi = xpath_instructions
+    
+    if xi[0] and xi[0][0].to_sym == :to_s then
+      
+      _, operator, value = xi.shift
+      r.method(operator.to_sym).call value
+    else
+      r ? true : false      
+    end
+    
+    
   end
   
   def not(node, args, xpath_instructions)
