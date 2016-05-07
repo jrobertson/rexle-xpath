@@ -9,7 +9,7 @@ class RexleXPath
 
   def initialize(node=nil)
 
-    @node = XPathObject.new(node)
+    @node = node
 
   end
 
@@ -25,22 +25,27 @@ class RexleXPath
     end
   end
 
-  def query(node, xpath_instructions)
-    
+  def query(node=@node, xpath_instructions)
+
     r = []
+
     row = xpath_instructions.shift    
-
-    method_name, *args = row
     
-    a = if method_name == :select then
-      
-      r = node.select args.first
+    method_name, *args = row
 
-      if xpath_instructions.any? and r.any? then
-        r.map {|child_node| query(child_node, xpath_instructions) }
-      else
-        r
-      end
+    return query node, row if row.first.is_a? Array
+    
+    result = if method_name.to_sym == :select then
+
+      method(:select).call node, args, xpath_instructions
+      
+    elsif method_name.to_sym == :text or method_name.to_sym == :value then
+
+      method(:value).call node, args, xpath_instructions
+      
+    elsif method_name.to_sym == :predicate then
+
+      method(:predicate).call node, args, xpath_instructions      
       
     elsif row.is_a? Array then
       query node, row
@@ -48,32 +53,62 @@ class RexleXPath
       []
     end
 
-    a.flatten
+    result.is_a?(Array) ? result.flatten : result
 
   end
-
-  class XPathObject
-
-    def initialize(element)
-      @element = element
-    end
-
-    def name()
-      @element.name()
-    end
+  
+  private
+  
+  def predicate(node, args, xpath_instructions)
     
-    def not()
-      @element
-    end
-    
-    def select(name)
-      @element.select(name)
-    end
-
-    def text()
-      @element.text()
-    end
-
+    a = args
+    r = query node, a
+    r ? r.any? : r
   end
+  
+  def select(node, args, xpath_instructions)
 
+    a = node.select args.first
+
+    if xpath_instructions.any? and a.any? then
+      
+      a.inject([]) do |r, child_node| 
+        
+        r2 = query(child_node, xpath_instructions.clone)
+
+        if r2.is_a? Rexle::Element then
+          r << r2
+        elsif r2 == true
+          r << child_node
+        elsif r2 == false
+          r
+        else
+
+          if r2.any? then
+            r << r2
+          else
+            r
+          end
+        end
+        
+      end
+    else
+      a
+    end    
+  end
+  
+  def value(node, args, xpath_instructions)
+
+    operator, operand = args
+    
+    r = case operator.to_sym
+    when :== then  node.text == operand
+    when :>  then  node.value > operand
+    when :<  then  node.value < operand
+    end
+
+    r
+        
+  end
+  
 end
