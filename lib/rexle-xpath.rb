@@ -7,10 +7,12 @@ require 'rexle-xpath-parser'
 
 class RexleXPath
 
-  def initialize(node=nil)
+  def initialize(node=nil, debug: false)
+
 
     @node = node
-
+    @debug = debug
+    
   end
 
   def parse(s)
@@ -21,15 +23,19 @@ class RexleXPath
     when /^(\w+)\(\)$/
       @node.method(($1).to_sym).call
     else
-      query @node, RexleXPathParser.new(s).to_a
+      a = RexleXPathParser.new(s).to_a
+      puts 'a: ' + a.inspect
+      query @node, a
     end
   end
 
   def query(node=@node, xpath_instructions)
 
+    debug :query, node: node, xpath_instructions: xpath_instructions
+
     r = []
 
-    row = xpath_instructions.shift        
+    row = xpath_instructions.shift
     method_name, *args = row
 
     return query node, row if row.first.is_a? Array    
@@ -47,8 +53,8 @@ class RexleXPath
     r = node.attributes[key]
     
     xi = xpath_instructions
-    
-    if xi[0] and xi[0][0].to_sym == :to_s then
+
+    if xi[0] and xi[0][0].to_sym == :value then
       
       _, operator, value = xi.shift
       r.method(operator.to_sym).call value
@@ -67,21 +73,25 @@ class RexleXPath
   
   def predicate(node, args, xpath_instructions)
     
+    debug :predicate, node: node, args: args, 
+        xpath_instructions: xpath_instructions
+
     r = query node, args
-    r ? r.any? : r    
+    r.is_a?(Array) ? r.any? : r
+
   end
   
   def select(node, args, xpath_instructions)
 
     a = node.elements.select {|x| x.name == args.first }
-
     predicate = xpath_instructions.flatten.first.to_s == 'predicate'
 
     if xpath_instructions.any? and a.any? then
       
       a.inject([]) do |r, child_node| 
-        
-        r2 = query(child_node, xpath_instructions.clone)
+
+        xi = Marshal.load( Marshal.dump(xpath_instructions) )
+        r2 = query(child_node, xi)
 
         case r2.class.to_s.to_sym
         when :'Rexle::Element' then r << r2
@@ -107,14 +117,20 @@ class RexleXPath
 
     operator, operand = args
     
-    case operator.to_sym
-    when :== then  node.text == operand
-    when :>  then  node.value > operand
-    when :<  then  node.value < operand
-    end
+    node.value.method(operator.to_sym).call operand
         
   end
   
   alias text value
   
+  def debug(method, h={})
+    
+    return unless @debug
+    
+    puts
+    puts '# inside ' + method.to_s
+    h.each {|k,v| puts "... %s: %s" % [k,v.inspect] }
+    puts
+    
+  end
 end
