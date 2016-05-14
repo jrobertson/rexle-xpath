@@ -5,7 +5,20 @@
 require 'rexle-xpath-parser'
 
 
+module ArrayClone
+  
+  refine Array do
+    
+    def deep_clone()
+      Marshal.load( Marshal.dump(self) )
+    end
+    
+  end
+end
+
 class RexleXPath
+  
+  using ArrayClone
 
   def initialize(node=nil, debug: false)
 
@@ -24,7 +37,7 @@ class RexleXPath
       @node.method(($1).to_sym).call
     else
       a = RexleXPathParser.new(s).to_a
-      puts 'a: ' + a.inspect
+      #puts 'a: ' + a.inspect
       query @node, a
     end
   end
@@ -50,16 +63,16 @@ class RexleXPath
   def attribute(node, args, xpath_instructions)
 
     key = args.first.to_sym
-    r = node.attributes[key]
+    attr = node.attributes[key]
     
     xi = xpath_instructions
 
     if xi[0] and xi[0][0].to_sym == :value then
       
       _, operator, value = xi.shift
-      r.method(operator.to_sym).call value
+      attr.method(operator.to_sym).call value
     else
-      r ? true : false      
+      attr ? true : false      
     end
     
     
@@ -81,6 +94,20 @@ class RexleXPath
 
   end
   
+  def recursive(node, args, xpath_instructions)
+    
+    xi = args #xpath_instructions
+
+    a = []
+    a << query(node, xi.deep_clone)
+    
+    node.each_recursive do |e|
+      a << query(e, xi.deep_clone)
+    end    
+    
+    a
+  end
+  
   def select(node, args, xpath_instructions)
 
     a = node.elements.select {|x| x.name == args.first }
@@ -90,7 +117,9 @@ class RexleXPath
       
       a.inject([]) do |r, child_node| 
 
-        xi = Marshal.load( Marshal.dump(xpath_instructions) )
+        # deep clone the xpath instructions
+        xi = xpath_instructions.deep_clone
+        
         r2 = query(child_node, xi)
 
         case r2.class.to_s.to_sym
