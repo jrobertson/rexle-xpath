@@ -78,6 +78,12 @@ class RexleXPath
     
   end
   
+  def count(node, args, xpath_instructions)    
+    
+    r = query node, xpath_instructions
+    [r.length]
+  end   
+  
   def not(node, args, xpath_instructions)
     
     r = query node, xpath_instructions
