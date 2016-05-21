@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name = 'rexle-xpath'
-  s.version = '0.2.9'
+  s.version = '0.2.10'
   s.summary = 'Under development, and is not currently used by the Rexle gem.'
   s.authors = ['James Robertson']
   s.files = Dir['lib/rexle-xpath.rb']

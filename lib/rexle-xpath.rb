@@ -63,6 +63,7 @@ class RexleXPath
   def attribute(node, args, xpath_instructions)
 
     key = args.first.to_sym
+
     attr = node.attributes[key]
     
     xi = xpath_instructions
@@ -72,7 +73,7 @@ class RexleXPath
       _, operator, value = xi.shift
       attr.method(operator.to_sym).call value
     else
-      attr ? true : false      
+      attr ? Rexle::Element::Attribute.new(attr) : nil
     end
     
     
