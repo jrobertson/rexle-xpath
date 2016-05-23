@@ -85,6 +85,17 @@ class RexleXPath
     [r.length]
   end   
   
+  def index(node, args, xpath_instructions)    
+
+    debug :index, node: node, args: args, 
+        xpath_instructions: xpath_instructions    
+    
+    i = args.first.to_i
+    r = query node, xpath_instructions
+
+    [r[i-1]]
+  end
+  
   def not(node, args, xpath_instructions)
     
     r = query node, xpath_instructions
@@ -118,7 +129,16 @@ class RexleXPath
   def select(node, args, xpath_instructions)
 
     a = node.elements.select {|x| x.name == args.first }
-    predicate = xpath_instructions.flatten.first.to_s == 'predicate'
+    flat_xpi = xpath_instructions.flatten
+
+    predicate = flat_xpi.first.to_s == 'predicate'
+    
+    if predicate and flat_xpi[1] == :index then
+      
+      i = flat_xpi[2].to_i - 1
+      return a[i]
+      
+    end
 
     if xpath_instructions.any? and a.any? then
       
