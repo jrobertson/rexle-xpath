@@ -62,6 +62,8 @@ class RexleXPath
   
   def attribute(node, args, xpath_instructions)
 
+    debug :attribute, node: node, xpath_instructions: xpath_instructions
+    
     key = args.first.to_sym
 
     attr = node.attributes[key]
@@ -108,6 +110,7 @@ class RexleXPath
         xpath_instructions: xpath_instructions
 
     r = query node, args
+
     r.is_a?(Array) ? r.any? : r
 
   end
@@ -128,6 +131,9 @@ class RexleXPath
   
   def select(node, args, xpath_instructions)
 
+    debug :select, node: node, args: args, 
+        xpath_instructions: xpath_instructions
+    
     a = node.elements.select {|x| x.name == args.first }
     flat_xpi = xpath_instructions.flatten
 
@@ -155,10 +161,12 @@ class RexleXPath
           predicate ? r << child_node : r << true
         when :FalseClass
           !predicate ? r << false : r
+        when :'Rexle::Element::Attribute'
+          r << child_node
+        when :NilClass
+          r
         else
-          
-          r2.any? ? r << r2 : r
-          
+          r2.any? ? r << r2 : r          
         end # /case
         
       end # /inject
