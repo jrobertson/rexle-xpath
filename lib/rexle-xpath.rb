@@ -29,13 +29,19 @@ class RexleXPath
   end
 
   def parse(s)
-
-    case s
       
-    # it's an xpath function
-    when /^(\w+)\(\)$/
-      @node.method(($1).to_sym).call
+    # it's an xpath function only
+    if /^(?<name>\w+)\(\)$/ =~ s
+      
+      @node.method((name).to_sym).call
+      
+    # it's an element only
+    elsif /^(?<name>\w+)$/ =~ s
+      
+      select(@node, [name])
+      
     else
+      
       a = RexleXPathParser.new(s).to_a
       #puts 'a: ' + a.inspect
       query @node, a
@@ -122,19 +128,17 @@ class RexleXPath
     a = []
     a << query(node, xi.deep_clone)
     
-    node.each_recursive do |e|
-      a << query(e, xi.deep_clone)
-    end    
+    node.each_recursive {|e| a << query(e, xi.deep_clone) }
     
     a
   end
   
-  def select(node, args, xpath_instructions)
+  def select(node, args, xpath_instructions=[])
 
     debug :select, node: node, args: args, 
         xpath_instructions: xpath_instructions
     
-    a = node.elements.select {|x| x.name == args.first }
+    nodes_found = node.elements.select {|x| x.name == args.first }
     flat_xpi = xpath_instructions.flatten
 
     predicate = flat_xpi.first.to_s == 'predicate'
@@ -142,13 +146,13 @@ class RexleXPath
     if predicate and flat_xpi[1] == :index then
       
       i = flat_xpi[2].to_i - 1
-      return a[i]
+      return nodes_found[i]
       
     end
 
-    if xpath_instructions.any? and a.any? then
+    if xpath_instructions.any? and nodes_found.any? then
       
-      a.inject([]) do |r, child_node| 
+      nodes_found.inject([]) do |r, child_node| 
 
         # deep clone the xpath instructions
         xi = xpath_instructions.deep_clone
@@ -172,9 +176,13 @@ class RexleXPath
       end # /inject
       
     else
-      a
+      nodes_found
     end  # /if
     
+  end
+  
+  def text(node, args, xpath_instructions)
+    node.text
   end
   
   def value(node, args, xpath_instructions)
