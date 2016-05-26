@@ -22,7 +22,6 @@ class RexleXPath
 
   def initialize(node=nil, debug: false)
 
-
     @node = node
     @debug = debug
     
@@ -57,9 +56,10 @@ class RexleXPath
     row = xpath_instructions.shift
     method_name, *args = row
 
-    return query node, row if row.first.is_a? Array    
+    return query node, row + xpath_instructions if row.first.is_a? Array    
 
     result = method(method_name.to_sym).call node, args, xpath_instructions
+
     result.is_a?(Array) ? result.flatten : result
 
   end
@@ -139,6 +139,7 @@ class RexleXPath
         xpath_instructions: xpath_instructions
     
     nodes_found = node.elements.select {|x| x.name == args.first }
+
     flat_xpi = xpath_instructions.flatten
 
     predicate = flat_xpi.first.to_s == 'predicate'
@@ -181,15 +182,14 @@ class RexleXPath
     
   end
   
-  def text(node, args, xpath_instructions)
-    node.text
-  end
-  
   def value(node, args, xpath_instructions)
 
     operator, operand = args
-    
-    node.value.method(operator.to_sym).call operand
+    if operator then
+      node.value.method(operator.to_sym).call operand
+    else
+      [node.text]
+    end
         
   end
   
