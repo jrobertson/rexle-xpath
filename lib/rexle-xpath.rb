@@ -137,8 +137,14 @@ class RexleXPath
 
     debug :select, node: node, args: args, 
         xpath_instructions: xpath_instructions
+
+    selector = args.first
     
-    nodes_found = node.elements.select {|x| x.name == args.first }
+    nodes_found = if selector == '*' then
+      node.elements.to_a
+    else
+      node.elements.select {|x| x.name == selector }
+    end
 
     flat_xpi = xpath_instructions.flatten
 
