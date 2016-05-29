@@ -28,7 +28,7 @@ class RexleXPath
   end
 
   def parse(s)
-      
+
     # it's an xpath function only
     if /^(?<name>\w+)\(\)$/ =~ s
       
@@ -40,29 +40,42 @@ class RexleXPath
       select(@node, [name])
       
     else
+
+      xpath_instructions = RexleXPathParser.new(s).to_a
+      #puts 'xpath_instructions: ' + xpath_instructions.inspect
       
-      a = RexleXPathParser.new(s).to_a
-      #puts 'a: ' + a.inspect
-      query @node, a
+      query xpath_instructions, @node
     end
   end
 
-  def query(node=@node, xpath_instructions)
+  
+  def query(xpath_instructions=[], node=@node)
 
     debug :query, node: node, xpath_instructions: xpath_instructions
-
-    r = []
 
     row = xpath_instructions.shift
     method_name, *args = row
 
-    return query node, row + xpath_instructions if row.first.is_a? Array    
+    return query row + xpath_instructions, node if row.first.is_a? Array    
 
-    result = method(method_name.to_sym).call node, args, xpath_instructions
+    result = if method_name == :predicate then
+
+      result2 = method(method_name.to_sym).call node, args,[]
+      
+      if result2 and xpath_instructions.any? then
+        query xpath_instructions, node
+      else
+        result2
+      end
+      
+    else
+
+      method(method_name.to_sym).call node, args, xpath_instructions
+    end
 
     result.is_a?(Array) ? result.flatten : result
 
-  end
+  end 
   
   private
   
@@ -77,7 +90,7 @@ class RexleXPath
     xi = xpath_instructions
 
     if xi[0] and xi[0][0].to_sym == :value then
-      
+
       _, operator, value = xi.shift
       attr.method(operator.to_sym).call value
     else
@@ -89,7 +102,7 @@ class RexleXPath
   
   def count(node, args, xpath_instructions)    
     
-    r = query node, xpath_instructions
+    r = query xpath_instructions, node
     [r.length]
   end   
   
@@ -99,14 +112,14 @@ class RexleXPath
         xpath_instructions: xpath_instructions    
     
     i = args.first.to_i
-    r = query node, xpath_instructions
+    r = query xpath_instructions, node
 
     [r[i-1]]
   end
   
   def not(node, args, xpath_instructions)
     
-    r = query node, xpath_instructions
+    r = query xpath_instructions, node
     !(r ? r.any? : r)
   end  
   
@@ -115,7 +128,7 @@ class RexleXPath
     debug :predicate, node: node, args: args, 
         xpath_instructions: xpath_instructions
 
-    r = query node, args
+    r = query args, node
 
     r.is_a?(Array) ? r.any? : r
 
@@ -126,9 +139,9 @@ class RexleXPath
     xi = args #xpath_instructions
 
     a = []
-    a << query(node, xi.deep_clone)
+    a << query(xi.deep_clone, node)
     
-    node.each_recursive {|e| a << query(e, xi.deep_clone) }
+    node.each_recursive {|e| a << query(xi.deep_clone, e) }
     
     a
   end
@@ -158,13 +171,13 @@ class RexleXPath
     end
 
     if xpath_instructions.any? and nodes_found.any? then
-      
+
       nodes_found.inject([]) do |r, child_node| 
 
         # deep clone the xpath instructions
         xi = xpath_instructions.deep_clone
-        
-        r2 = query(child_node, xi)
+
+        r2 = query(xi, child_node)
 
         case r2.class.to_s.to_sym
         when :'Rexle::Element' then r << r2
