@@ -202,10 +202,19 @@ class RexleXPath
   end
   
   def value(node, args, xpath_instructions)
-
+    
+    debug :value, node: node, args: args, 
+        xpath_instructions: xpath_instructions
+    
+    
+    
     operator, operand = args
+    
     if operator then
+      
+      return false unless node.value
       node.value.method(operator.to_sym).call operand
+      
     else
       [node.text]
     end
