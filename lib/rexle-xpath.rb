@@ -155,6 +155,8 @@ class RexleXPath
     
     nodes_found = if selector == '*' then
       node.elements.to_a
+    elsif selector == '.'
+      [node]
     else
       node.elements.select {|x| x.name == selector }
     end
