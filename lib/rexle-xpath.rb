@@ -42,7 +42,6 @@ class RexleXPath
     else
 
       xpath_instructions = RexleXPathParser.new(s).to_a
-      #puts 'xpath_instructions: ' + xpath_instructions.inspect
       
       query xpath_instructions, @node
     end
@@ -56,7 +55,11 @@ class RexleXPath
     row = xpath_instructions.shift
     method_name, *args = row
 
-    return query row + xpath_instructions, node if row.first.is_a? Array    
+    return query xpath_instructions, node if row == :|
+    
+    if row.is_a? Array and row.first.is_a? Array then
+      return query row + xpath_instructions, node         
+    end
 
     result = if method_name == :predicate then
 
@@ -70,7 +73,8 @@ class RexleXPath
       
     else
 
-      method(method_name.to_sym).call node, args, xpath_instructions
+      r3 = method(method_name.to_sym).call node, args, xpath_instructions
+      r3
     end
 
     result.is_a?(Array) ? result.flatten : result
@@ -171,17 +175,18 @@ class RexleXPath
       return nodes_found[i]
       
     end
-
+    
     if xpath_instructions.any? and nodes_found.any? then
 
       nodes_found.inject([]) do |r, child_node| 
 
         # deep clone the xpath instructions
         xi = xpath_instructions.deep_clone
+        operand = xi.shift  if xi.first == :|
 
         r2 = query(xi, child_node)
 
-        case r2.class.to_s.to_sym
+        r3 = case r2.class.to_s.to_sym
         when :'Rexle::Element' then r << r2
         when :TrueClass        
           predicate ? r << child_node : r << true
@@ -192,10 +197,26 @@ class RexleXPath
         when :NilClass
           r
         else
-          r2.any? ? r << r2 : r          
+          r2.any? ? r << r2 : r #<< child_node
         end # /case
         
+        if operand == :| then
+          nodes_found + r3
+        else
+          r3
+        end
+        
       end # /inject
+      
+    elsif xpath_instructions.any? and nodes_found.empty?
+      
+      operator = xpath_instructions.shift
+      
+      if operator == :| then
+        query xpath_instructions, node
+      else
+        nodes_found
+      end
       
     else
       nodes_found
