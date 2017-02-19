@@ -53,12 +53,41 @@ class RexleXPath
     debug :query, node: node, xpath_instructions: xpath_instructions
 
     row = xpath_instructions.shift
-    method_name, *args = row
+    method_name, *args = row    
 
     return query xpath_instructions, node if row == :|
     
-    if row.is_a? Array and row.first.is_a? Array then
-      return query row + xpath_instructions, node         
+    if row.is_a? Array and row.first.is_a? Array then      
+      
+      unless row.any? {|x| x == :|} then
+        
+        return query row + xpath_instructions, node         
+      else
+  
+        a = row
+
+        a2 = a.inject([[]]) do |r, x|
+
+          if x != :| then
+
+            if r.last.is_a? Array then
+              r.last << x
+            else
+              r << [x]
+            end
+
+          else
+            r.unshift x
+            r << []
+          end
+          r
+        end
+
+        name = a2.shift
+        r3 =  method(name).call(a2, node)
+        return r3
+        
+      end
     end
 
     result = if method_name == :predicate then
@@ -83,11 +112,19 @@ class RexleXPath
   
   private
   
+  
+  def |(args=[], node)
+    r = args.flat_map {|x| query x, node}
+    r.any?
+  end
+    
+  
   def attribute(node, args, xpath_instructions)
 
-    debug :attribute, node: node, xpath_instructions: xpath_instructions
+    debug :attribute, args: args, node: node, 
+        xpath_instructions: xpath_instructions
     
-    key = args.first.to_sym
+    key = args.first.is_a?(Array) ? args.first.first.to_sym : args.first.to_sym
 
     attr = node.attributes[key]
     
